@@ -9,12 +9,15 @@ module Keyboard.Extra
         , Msg(..)
         , toCode
         , fromCode
+        , isOneKeyPressed
+        , isTwoKeysPressed
+        , isThreeKeysPressed
         )
 
 {-| Convenience helpers for working with keyboard inputs.
 
 # Helpers
-@docs isPressed isOneKeyPressed isTwoKeysPressed isThreeKeysPressed
+@docs isPressed, isOneKeyPressed, isTwoKeysPressed, isThreeKeysPressed
 
 # Wiring
 @docs Model, Msg, subscriptions, init, update
