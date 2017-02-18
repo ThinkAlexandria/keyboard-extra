@@ -1,7 +1,7 @@
 {
-    "version": "1.3.0",
+    "version": "1.0.0",
     "summary": "Convenience helpers for working with Keyboard",
-    "repository": "https://github.com/ohanhi/keyboard-extra.git",
+    "repository": "https://github.com/amilner42/keyboard-extra.git",
     "license": "BSD3",
     "source-directories": [
         "src"
