@@ -4,16 +4,9 @@ module Keyboard.Extra
         , update
         , init
         , isPressed
-        , arrows
-        , wasd
-        , arrowsDirection
-        , wasdDirection
-        , pressedDown
-        , Direction(..)
         , Key(..)
         , Model
         , Msg(..)
-        , targetKey
         , toCode
         , fromCode
         )
@@ -21,16 +14,10 @@ module Keyboard.Extra
 {-| Convenience helpers for working with keyboard inputs.
 
 # Helpers
-@docs isPressed, pressedDown
-
-# Directions
-@docs arrows, wasd, Direction, arrowsDirection, wasdDirection
+@docs isPressed isOneKeyPressed isTwoKeysPressed isThreeKeysPressed
 
 # Wiring
 @docs Model, Msg, subscriptions, init, update
-
-# Decoder
-@docs targetKey
 
 # Keyboard keys
 @docs Key
@@ -42,8 +29,8 @@ module Keyboard.Extra
 import Keyboard exposing (KeyCode)
 import Dict exposing (Dict)
 import Set exposing (Set)
-import Json.Decode as Json
-import Keyboard.Arrows as Arrows exposing (Arrows)
+import Json.Encode as Encode
+import Json.Decode as Decode
 
 
 {-| The message type `Keyboard.Extra` uses.
@@ -63,17 +50,22 @@ subscriptions =
         ]
 
 
-{-| The internal representation of `Keyboard.Extra`. Useful for type annotation.
+{-| A list containing the current keys down, will only contain the last
+3 characters if more than 3 are down at the same time. New keys are appended
+to the front of the list, so the most recent key the user pressed will be first.
+Additionally, to make sure all keys do get removed (for they keys that didn't
+get removed on the `onKeyUp`), when removing elements from the list we switch
+them with `Nothing`, that way keys always do get pushed off the end of the list.
 -}
 type alias Model =
-    { keysDown : Set KeyCode }
+    List (Maybe KeyCode)
 
 
 {-| Use this to initialize the component.
 -}
 init : Model
 init =
-    Model Set.empty
+    []
 
 
 {-| You need to call this to have the component update.
@@ -82,127 +74,60 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         Down code ->
-            let
-                keysDown =
-                    Set.insert code model.keysDown
-            in
-                { model | keysDown = keysDown }
+            if List.member (Just code) model then
+                model
+            else
+                List.take 3 <| (Just code) :: model
 
         Up code ->
-            let
-                keysDown =
-                    Set.remove code model.keysDown
-            in
-                { model | keysDown = keysDown }
+            List.map
+                (\itemCode ->
+                    if itemCode == (Just code) then
+                        Nothing
+                    else
+                        itemCode
+                )
+                model
 
 
-{-| Gives the arrow keys' pressed down state as follows:
-
-- `{ x = 0, y = 0 }` when pressing no arrows.
-- `{ x =-1, y = 0 }` when pressing the left arrow.
-- `{ x = 1, y = 1 }` when pressing the up and right arrows.
-- `{ x = 0, y =-1 }` when pressing the down, left, and right arrows (left and right cancel out).
+{-| Returns the number of currently pressed keys.
 -}
-arrows : Model -> Arrows
-arrows model =
-    Arrows.determineArrows model.keysDown
-
-
-{-| Similar to `arrows`, gives the W, A, S and D keys' pressed down state.
-
-- `{ x = 0, y = 0 }` when pressing none of W, A, S and D.
-- `{ x =-1, y = 0 }` when pressing A.
-- `{ x = 1, y = 1 }` when pressing W and D.
-- `{ x = 0, y =-1 }` when pressing A, S and D (A and D cancel out).
--}
-wasd : Model -> Arrows
-wasd model =
-    Arrows.determineWasd model.keysDown
-
-
-{-| Type representation of the arrows.
--}
-type Direction
-    = North
-    | NorthEast
-    | East
-    | SouthEast
-    | South
-    | SouthWest
-    | West
-    | NorthWest
-    | NoDirection
-
-
-{-| Gives the arrow keys' pressed down state as follows:
-
-- `None` when pressing no arrows.
-- `West` when pressing the left arrow.
-- `NorthEast` when pressing the up and right arrows.
-- `South` when pressing the down, left, and right arrows (left and right cancel out).
--}
-arrowsDirection : Model -> Direction
-arrowsDirection =
-    arrowsToDir << arrows
-
-
-{-| Similar to `arrows`, gives the W, A, S and D keys' pressed down state.
-
-- `None` when pressing none of W, A, S and D.
-- `West` when pressing A.
-- `NorthEast` when pressing W and D.
-- `South` when pressing A, S and D (A and D cancel out).
--}
-wasdDirection : Model -> Direction
-wasdDirection =
-    arrowsToDir << wasd
-
-
-arrowsToDir : Arrows -> Direction
-arrowsToDir { x, y } =
-    case ( x, y ) of
-        ( 0, 1 ) ->
-            North
-
-        ( 1, 1 ) ->
-            NorthEast
-
-        ( 1, 0 ) ->
-            East
-
-        ( 1, -1 ) ->
-            SouthEast
-
-        ( 0, -1 ) ->
-            South
-
-        ( -1, -1 ) ->
-            SouthWest
-
-        ( -1, 0 ) ->
-            West
-
-        ( -1, 1 ) ->
-            NorthWest
-
-        _ ->
-            NoDirection
+numberOfPressedKeys : Model -> Int
+numberOfPressedKeys =
+    List.length << List.filter ((/=) Nothing)
 
 
 {-| Check the pressed down state of any `Key`.
 -}
 isPressed : Key -> Model -> Bool
 isPressed key model =
-    Set.member (toCode key) model.keysDown
+    List.member (Just <| toCode key) model
 
 
-{-| Get the full list of keys that are currently pressed down.
+{-| Checks if just one key is pressed.
 -}
-pressedDown : Model -> List Key
-pressedDown model =
-    model.keysDown
-        |> Set.toList
-        |> List.map fromCode
+isOneKeyPressed : Key -> Model -> Bool
+isOneKeyPressed key model =
+    (numberOfPressedKeys model == 1) && (isPressed key model)
+
+
+{-| Checks if just two keys are pressed.
+-}
+isTwoKeysPressed : Key -> Key -> Model -> Bool
+isTwoKeysPressed key1 key2 model =
+    (numberOfPressedKeys model == 2)
+        && (isPressed key1 model)
+        && (isPressed key2 model)
+
+
+{-| Checks if just three keys are pressed.
+-}
+isThreeKeysPressed : Key -> Key -> Key -> Model -> Bool
+isThreeKeysPressed key1 key2 key3 model =
+    (numberOfPressedKeys model == 3)
+        && (isPressed key1 model)
+        && (isPressed key2 model)
+        && (isPressed key3 model)
 
 
 {-| Convert a key code into a `Key`.
@@ -223,19 +148,6 @@ toCode key =
         |> List.map Tuple.first
         |> List.head
         |> Maybe.withDefault 0
-
-
-{-| A `Json.Decoder` for grabbing `event.keyCode` and turning it into a `Key`
-
-    import Json.Decode as Json
-
-    onKey : (Key -> msg) -> Attribute msg
-    onKey tagger =
-      on "keydown" (Json.map tagger targetKey)
--}
-targetKey : Json.Decoder Key
-targetKey =
-    Json.map fromCode (Json.field "keyCode" Json.int)
 
 
 {-| These are all the keys that have names in `Keyboard.Extra`.
