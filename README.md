@@ -23,7 +23,7 @@ change the code up a bit.
 
 Add it to your Model:
 
-```Elm
+```elm
 type alias Model =
     { keysDown : Keyboard.Extra.Model
     -- ...
@@ -32,7 +32,7 @@ type alias Model =
 
 Add it to your init:
 
-```Elm
+```elm
 init =
     { keysDown = Keyboard.Extra.init
     -- ...
@@ -43,7 +43,7 @@ init =
 
 Add it to your messages:
 
-```Elm
+```elm
 type Msg =
     KeyboardExtraMsg Keyboard.Extra.Msg
     -- ...
@@ -51,7 +51,7 @@ type Msg =
 
 Add it to your update.
 
-```Elm
+```elm
 case msg of
     KeyboardExtraMsg keyMsg ->
         let
@@ -66,7 +66,7 @@ case msg of
 
 And lastly, hook up your subscriptions:
 
-```Elm
+```elm
 subscriptions model =
     Sub.batch
        [ Sub.map KeyboardExtraMsg Keyboard.Extra.subscriptions
