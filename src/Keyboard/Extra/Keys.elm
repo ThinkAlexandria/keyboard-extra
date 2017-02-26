@@ -5,13 +5,17 @@ module Keyboard.Extra.Keys
     , fromKeyCode
     )
 
-{-| Stuff
+{-| This module provides a Union type giving a name for all reasonable 
+`Keyboard.KeyCode` values that common US English keyboards will produce.
+This module lets you refer to the shift key as `Shift` instead of writing the
+integer literal `16` everywhere.
+
+# Low level
+@docs fromKeyCode, toKeyCode
 
 # Keyboard keys
 @docs Key
 
-# Low level
-@docs fromKeyCode, toKeyCode
 -}
 
 import Keyboard exposing (KeyCode)
@@ -29,7 +33,7 @@ fromKeyCode code =
 
 {-| Convert a `Key` into a key code.
 -}
-toKeyCode : Key -> KeyCode
+toKeyCode : Key -> Keyboard.KeyCode
 toKeyCode key =
   codeBook
     |> List.filter (((==) key) << Tuple.second)

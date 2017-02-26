@@ -11,12 +11,29 @@ module Keyboard.Extra
     , mostRecentKeyUp
     )
 
-{-| Convenience helpers for working with keyboard inputs.
+{-| Add simple and complex hotkeys to your application with a single case
+statement.
+
+Some kinds of keycombinations you can dispatch against:
+
+- Press and release A and B while Shift is held
+- Press and release J while Shift and Tab are held down
+- Press and release keys in a specific order A B C but not A C B
+
+### Warning: This library does not implement debouncing logic.
+When holding multiple keys down, you will usually see a stream of keyup and
+keydown events for the last key to be held down. You will have to come up with
+your own logic to handle the flickering of the last key if your application
+relies on multiple key press and hold combos.
 
 # Wiring
 @docs Msg, Model, subscriptions, init, update
 
 # Helpers
+Prefer to use helper functions on the Keyboard.Extra.Model to get the Nth most
+recent key press rather than directly accessing the Model fields. The helper
+function API will almost certainly not change, but the Model type almost
+certainly will.
 @docs mostRecentKeyDown, secondRecentKeyDown, thirdRecentKeyDown, mostRecentKeyUp
 
 -}
@@ -37,19 +54,44 @@ type Msg
   | Up KeyCode
 
 
-{-| A record containing a keyState field intended to be used directly in case
-statements. The keyState is tuple where the first element is a List of Keys
-sorted by KeyCode. The list of keys pressed down is sorted by KeyCode to
-simplify pattern matching statements. The second element is a List of Keys in
-the order they were released. Both of the tuple elements are limited to a
+{-| A record containing a keyState field designed to be used directly in case
+statements. The first element of the keyState tuple is the list of keys pressed
+sorted by KeyCode. The assumptions being when a key combo
+requires multiple keys being held down, the exact order of keydown events does
+not matter.
+
+Example:
+
+    -- This is a valid model
+    { keyState = ( [ Tab, Shift, CharD ], [] )
+    , pressHistory = [ Tab, CharD, Shift ]
+    -- ...
+    }
+
+    -- Another valid history
+    { keyState = ( [ Tab, Shift, CharD ], [] )
+    , pressHistory = [ CharD, Shift, Tab ]
+    -- ...
+    }
+
+The second element of the keyState tuple is a list of keys sorted by KeyCode.
+ Both of the tuple elements are limited to a
 length of 3 to help deal with missing onkeyup events that are swallowed by
 browser bugs.
 
-Prefer to use helper functions on the Keyboard.Extra.Model to get the Nth most
-recent key press rather than directly accessing the Model fields. The helper
-function API will almost certainly not change, but the Model type almost
-certainly will.
+Example:
 
+    -- This is a valid model
+    { keyState = ( [ Shift, CharD ], [ Tab ] )
+    , pressHistory = [ CharD, Shift ]
+    , releaseHistory = [ Tab ]
+    }
+
+    -- After another release, note that keyState lists are sorted by KeyCode
+    { keyState = ( [ CharD ], [ Tab, Shift ] )
+    , pressHistory = [ CharD ]
+    , releaseHistory = [ Shift, Tab ]
+    }
 -}
 type alias Model =
   { keyState : (List Key, List Key)
@@ -69,6 +111,10 @@ init =
 
 
 {-| You need to call this to have the component update.
+
+When a duplicate keydown event arrives for any key already in the key down list
+, that key is moved to the head of the pressHistory list, but the keyState field
+will be unchanged because the set of keys pressed down has not changed.
 -}
 update : Msg -> Model -> Model
 update msg model =
