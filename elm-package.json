@@ -1,13 +1,14 @@
 {
-    "version": "2.1.0",
-    "summary": "Convenience helpers for working with Keyboard",
-    "repository": "https://github.com/amilner42/keyboard-extra.git",
+    "version": "0.1.0",
+    "summary": "Helpers for key combos when working with the Keyboard",
+    "repository": "https://github.com/ThinkAlexandria/keyboard-extra.git",
     "license": "BSD3",
     "source-directories": [
         "src"
     ],
     "exposed-modules": [
-        "Keyboard.Extra"
+        "Keyboard.Extra",
+        "Keyboard.Extra.Keys"
     ],
     "dependencies": {
         "elm-lang/core": "5.0.0 <= v < 6.0.0",

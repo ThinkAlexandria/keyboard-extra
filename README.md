@@ -7,17 +7,17 @@ Forked from: https://github.com/ohanhi/keyboard-extra.
 Intended to keep track of the current keys being pressed, but to avoid bugs
 where `onKeyUp` does not always get triggered for all the keys pressed down,
 this only keeps track of the last 3 keys. This way if a key gets added for
-`onKeyDown` and doesn't get removed for `onKeyUp`, it gets cleared pretty
-quickly anyway in just few key-presses.
+`onKeyDown` and doesn't get removed for `onKeyUp`, it can be cleared by pressing
+a few different more keys.
 
 [Stack Overflow Post Talking about missing `onKeyUp` event](http://stackoverflow.com/questions/27380018/when-cmd-key-is-kept-pressed-keyup-is-not-triggered-for-any-other-key)
 
 This library is not designed for games, it's designed for apps where you want
-to add hotkeys to trigger certain events.
-
-If you have hotkeys that are longer than 3-keys, then this library will not
-work for you, if you have that use-case make an issue and I can _possibly_
-change the code up a bit.
+to add hotkeys to trigger certain events. This version only supports key combos
+with multiple keys held down and one key released. Key combos that
+rely on holding multiple keys and then reacting only when all of those keys
+have been released are not supported. My application does not yet need to have
+multiple keys released, so I did not implement that functionality. PRs welcome.
 
 ### Usage
 
@@ -51,17 +51,45 @@ type Msg =
 
 Add it to your update.
 
+The `List` of pressed `Keys` will be sorted by the `Keyboard.Extra.update` to
+avoid having to pattern match all possible orders of key presses. This means
+when you must manually sort the list of Keys in your pattern matching by KeyCode
+value. This is a huge pain
+
 ```elm
-case msg of
+update msg model =
+  case msg of
     KeyboardExtraMsg keyMsg ->
-        let
-            newKeysDown =
-                Keyboard.Extra.update keyMsg model.keysDown
-        in
-            -- If you want to react to key-presses, call a function here instead
-            -- of just updating the model (you should still update the model).
-            ({ model | keysDown = newKeysDown }, Cmd.none)
-    -- ...
+      updateKeysDown keyMsg model
+
+  -- ..
+
+updateKeysDown : Keyboard.Extra.Msg -> Model -> Model
+updateKeysDown keyMsg model =
+  let
+    newKeysDown = Keyboard.Extra.update keyMsg model.keysDown
+    -- dont forget to update the Keyboard.Extra.Model
+    newModel = { model | keysDown = newKeysDown }
+  in
+    case newKeysDown.keyState of
+      -- Tab has KeyCode of 9 and Shift has KeyCode of 16.
+      ( [ Tab, Shift ], Just keyPressed ) ->
+        -- handle all hotkeys groups that require tab and shift to be held
+        case keyPressed of
+          CharC ->
+            copySelection newModel
+
+          CharV ->
+            pasteSelection newModel
+
+          CharX ->
+            cutSelection newModel
+
+      ( [ Meta, Control, Plus ], Nothing ) ->
+        handleSomeBizareHotkeyGroup newModel
+
+      _ ->
+        newModel
 ```
 
 And lastly, hook up your subscriptions:
@@ -82,50 +110,10 @@ and hold on to shift again but keep clicking tab. This is relatively standard
 behaviour and someone is _likely_ to do this over letting go of the shift every
 time. Let's take a look at what happens:
 
-Model:
-
-```
-[]
--> [Shift]
--> [Tab, Shift]
--> [Nothing, Shift]
--> [Tab, Nothing, Shift]
--> [Nothing, Nothing, Shift]
--> [Tab, Nothing, Nothing]
-```
-
-And as the `Shift` walks off the edge the user will still be holding it but
-will get the behaviour of a `Tab`! Not good...
-
-To avoid this you can do a basic check for any of your double-keys that you
-want to permit this type of behaviour for and simply reset it so:
-
-`[Tab, Nothing, Shift] -> [Tab, Shift]`
-
-Example code to do this:
-
-```elm
-newKeysDown =
-    KK.update msg model.shared.keysDown
-   
-newKeysDownAllowingShiftTab =
-    case newKeysDown of
-        [ Just key1, Nothing, Just key2 ] ->
-            if
-                ((KK.fromCode key1) == KK.Tab)
-                    && ((KK.fromCode key2) == KK.Shift)
-            then
-               [ Just key1, Just key2 ]
-            else
-                newKeysDown
-```
-
-That way the user can hold shift while tabbing as much as they want.
-
-I'd like to be able to handle this logic inside the library itself, but
-I haven't though of a way to generalize it to _any keys_. If I always
-watch for the pattern `[Just a, Nothing, Just b]` and update that to
-`[Just a, Just b]` then the entire point of this library removing
-"ghost keys" gets ruined because keys that get stuck in there could
-get stuck for a long time.
+1. Event: keydown Shift -> Model: { keyState = ( [ Shift ], Nothing) ... }
+2. Event: keydown Tab   -> Model: { keyState = ( [ Tab, Shift ], Nothing) ... }
+3. Event: keyup   Tab   -> Model: { keyState = ( [ Shift ], Just Tab) ... }
+4. Event: keydown Tab   -> Model: { keyState = ( [ Tab, Shift ], Nothing) ... }
+5. Event: keyup   Tab   -> Model: { keyState = ( [ Tab, Shift ], Just Tab) ... }
+6. Event: keydown Tab   -> Model: { keyState = ( [ Tab, Shift ], Nothing) ... }
 
