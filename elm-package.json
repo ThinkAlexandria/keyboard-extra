@@ -1,6 +1,6 @@
 {
-    "version": "1.0.0",
-    "summary": "Helpers for key combos when working with the Keyboard",
+    "version": "1.0.1",
+    "summary": "[DEPRECATED] do not use",
     "repository": "https://github.com/ThinkAlexandria/keyboard-extra.git",
     "license": "BSD3",
     "source-directories": [
